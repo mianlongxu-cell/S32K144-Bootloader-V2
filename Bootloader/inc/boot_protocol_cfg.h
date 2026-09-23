@@ -1,0 +1,27 @@
+#ifndef BOOT_PROTOCOL_CFG_H_
+#define BOOT_PROTOCOL_CFG_H_
+
+#define BOOT_CAN_REQUEST_ID              0x7E0u
+#define BOOT_CAN_RESPONSE_ID             0x7E8u
+#define BOOT_CAN_BITRATE                 500000u
+
+#define BOOT_ISOTP_MAX_PDU_LENGTH        256u
+#define BOOT_ISOTP_RX_BLOCK_SIZE         0u
+#define BOOT_ISOTP_RX_STMIN              0u
+#define BOOT_ISOTP_TIMEOUT_LOOPS         4000000u
+#define BOOT_TRANSFER_TIMEOUT_LOOPS      16000000u
+
+#define BOOT_TRANSFER_DATA_MAX_PAYLOAD   128u
+#define BOOT_DOWNLOAD_MAX_BLOCK_LENGTH   (BOOT_TRANSFER_DATA_MAX_PAYLOAD + 2u)
+
+#define BOOT_ROUTINE_ERASE_APP           0xFF00u
+#define BOOT_ROUTINE_VERIFY_CRC           0xFF01u
+
+#define BOOT_SECURITY_XOR                0xA5C39E71u
+#define BOOT_SECURITY_ROTATE             7u
+
+#define BOOT_P2_SERVER_MAX_MS            50u
+#define BOOT_P2_STAR_SERVER_MAX_MS       5000u
+#define BOOT_IDLE_TIMEOUT_LOOPS          16000000u
+
+#endif /* BOOT_PROTOCOL_CFG_H_ */

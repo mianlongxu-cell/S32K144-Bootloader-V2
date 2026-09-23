@@ -1,0 +1,52 @@
+CC := arm-none-eabi-gcc
+SIZE := arm-none-eabi-size
+OBJCOPY := arm-none-eabi-objcopy
+
+TARGET := Application_Build/Application
+CPU_FLAGS := -mcpu=cortex-m4 -mthumb -mfloat-abi=softfp -mfpu=fpv4-sp-d16
+COMMON_FLAGS := $(CPU_FLAGS) -O0 -g3 -Wall -ffunction-sections -fdata-sections \
+                -DCPU_S32K144HFT0VLLT -Iinclude -Iinclude/FreeRTOS \
+                -Iinclude/FreeRTOS/portable/GCC/ARM_CM4F
+CFLAGS := $(COMMON_FLAGS) -std=c11
+ASFLAGS := $(COMMON_FLAGS) -DSTART_FROM_FLASH -x assembler-with-cpp
+LDFLAGS := $(CPU_FLAGS) -specs=nosys.specs -T \
+           Project_Settings/Linker_Files/S32K144_64_flash.ld \
+           -Wl,--gc-sections -Wl,-Map,$(TARGET).map
+
+C_SOURCES := $(wildcard src/*.c) \
+             $(wildcard src/FreeRTOS-Kernel/*.c) \
+             src/FreeRTOS-Kernel/portable/GCC/ARM_CM4F/port.c \
+             src/FreeRTOS-Kernel/portable/MemMang/heap_4.c \
+             Project_Settings/Startup_Code/startup.c \
+             Project_Settings/Startup_Code/system_S32K144.c
+ASM_SOURCES := Project_Settings/Startup_Code/startup_S32K144.S
+C_OBJECTS := $(patsubst %.c,Application_Build/%.o,$(C_SOURCES))
+ASM_OBJECTS := $(patsubst %.S,Application_Build/%.o,$(ASM_SOURCES))
+OBJECTS := $(C_OBJECTS) $(ASM_OBJECTS)
+
+.PHONY: all clean bin
+
+all: $(TARGET).elf $(TARGET).bin
+
+bin: $(TARGET).bin
+
+$(TARGET).bin: $(TARGET).elf
+	$(OBJCOPY) -O binary $< $@
+
+$(TARGET).elf: $(OBJECTS) Project_Settings/Linker_Files/S32K144_64_flash.ld
+	@mkdir -p $(@D)
+	$(CC) $(LDFLAGS) -o $@ $(OBJECTS)
+	$(SIZE) --format=berkeley $@
+
+Application_Build/%.o: %.c
+	@mkdir -p $(@D)
+	$(CC) $(CFLAGS) -MMD -MP -c $< -o $@
+
+Application_Build/%.o: %.S
+	@mkdir -p $(@D)
+	$(CC) $(ASFLAGS) -MMD -MP -c $< -o $@
+
+clean:
+	rm -rf Application_Build
+
+-include $(C_OBJECTS:.o=.d) $(ASM_OBJECTS:.o=.d)

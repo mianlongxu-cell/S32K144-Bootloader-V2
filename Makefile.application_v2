@@ -1,0 +1,98 @@
+CC := arm-none-eabi-gcc
+SIZE := arm-none-eabi-size
+OBJCOPY := arm-none-eabi-objcopy
+
+SLOT ?= A
+IMAGE_VERSION ?= 2.0.0
+APP_TRIAL_MODE ?= 0
+CPU_FLAGS := -mcpu=cortex-m4 -mthumb -mfloat-abi=softfp -mfpu=fpv4-sp-d16
+COMMON_FLAGS := $(CPU_FLAGS) -O0 -g3 -Wall -Wextra -Werror \
+                -ffunction-sections -fdata-sections \
+                -DCPU_S32K144HFT0VLLT -Iinclude -Iinclude/FreeRTOS \
+                -Iinclude/FreeRTOS/portable/GCC/ARM_CM4F
+CFLAGS := $(COMMON_FLAGS) -std=c11 -DAPP_TRIAL_MODE=$(APP_TRIAL_MODE)
+ASFLAGS := $(COMMON_FLAGS) -DSTART_FROM_FLASH -x assembler-with-cpp
+
+ifeq ($(SLOT),A)
+BUILD_DIR := Application_Build/APP_A
+TARGET_NAME := APP_A
+LINKER := Project_Settings/Linker_Files/S32K144_app_slot_a.ld
+SLOT_DEFINE := -DAPP_BUILD_SLOT=0
+else ifeq ($(SLOT),B)
+BUILD_DIR := Application_Build/APP_B
+TARGET_NAME := APP_B
+LINKER := Project_Settings/Linker_Files/S32K144_app_slot_b.ld
+SLOT_DEFINE := -DAPP_BUILD_SLOT=1
+else
+$(error SLOT must be A or B)
+endif
+
+ifneq ($(APP_TRIAL_MODE),0)
+BUILD_DIR := Application_Build/Stage5/TestMode_$(APP_TRIAL_MODE)/APP_$(SLOT)
+endif
+
+TARGET := $(BUILD_DIR)/$(TARGET_NAME)
+LDFLAGS := $(CPU_FLAGS) -specs=nosys.specs -T $(LINKER) \
+           -Wl,--gc-sections -Wl,-Map,$(TARGET).map
+
+C_SOURCES := $(wildcard src/*.c) \
+             $(wildcard src/FreeRTOS-Kernel/*.c) \
+             src/FreeRTOS-Kernel/portable/GCC/ARM_CM4F/port.c \
+             src/FreeRTOS-Kernel/portable/MemMang/heap_4.c \
+             Project_Settings/Startup_Code/startup.c \
+             Project_Settings/Startup_Code/system_S32K144.c
+ASM_SOURCES := Project_Settings/Startup_Code/startup_S32K144.S
+C_OBJECTS := $(patsubst %.c,$(BUILD_DIR)/obj/%.o,$(C_SOURCES))
+ASM_OBJECTS := $(patsubst %.S,$(BUILD_DIR)/obj/%.o,$(ASM_SOURCES))
+OBJECTS := $(C_OBJECTS) $(ASM_OBJECTS)
+
+.PHONY: all clean app-a app-b pack-a pack-b images test-host
+
+all: $(TARGET).elf $(TARGET).bin $(TARGET).srec
+
+app-a:
+	$(MAKE) -f Makefile.application_v2 SLOT=A all
+
+app-b:
+	$(MAKE) -f Makefile.application_v2 SLOT=B all
+
+pack-a:
+	$(MAKE) -f Makefile.application_v2 SLOT=A all
+	node tools/pack_image.js --slot A --input Application_Build/APP_A/APP_A.bin \
+		--output Application_Build/APP_A/app_slot_a_image.bin \
+		--version $(IMAGE_VERSION)
+
+pack-b:
+	$(MAKE) -f Makefile.application_v2 SLOT=B all
+	node tools/pack_image.js --slot B --input Application_Build/APP_B/APP_B.bin \
+		--output Application_Build/APP_B/app_slot_b_image.bin \
+		--version $(IMAGE_VERSION)
+
+images: pack-a pack-b
+
+test-host:
+	node tools/tests/stage2_host_tests.js
+
+$(TARGET).elf: $(OBJECTS) $(LINKER)
+	@mkdir -p $(@D)
+	$(CC) $(LDFLAGS) -o $@ $(OBJECTS)
+	$(SIZE) --format=berkeley $@
+
+$(TARGET).bin: $(TARGET).elf
+	$(OBJCOPY) -O binary $< $@
+
+$(TARGET).srec: $(TARGET).elf
+	$(OBJCOPY) -O srec $< $@
+
+$(BUILD_DIR)/obj/%.o: %.c
+	@mkdir -p $(@D)
+	$(CC) $(CFLAGS) $(SLOT_DEFINE) -MMD -MP -c $< -o $@
+
+$(BUILD_DIR)/obj/%.o: %.S
+	@mkdir -p $(@D)
+	$(CC) $(ASFLAGS) $(SLOT_DEFINE) -MMD -MP -c $< -o $@
+
+clean:
+	rm -rf Application_Build/APP_A Application_Build/APP_B
+
+-include $(C_OBJECTS:.o=.d) $(ASM_OBJECTS:.o=.d)

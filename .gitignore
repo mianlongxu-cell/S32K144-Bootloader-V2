@@ -1,0 +1,57 @@
+# S32DS / Eclipse generated output and workspace state
+/Debug*/
+/Release*/
+/.metadata/
+/.cache/
+/.settings/language.settings.xml
+/Project_Settings/Debugger/*.launch
+*.o
+*.d
+*.elf
+*.map
+*.siz
+*.hex
+*.srec
+
+# S32DS debugger/runtime output
+/*.und/
+*.elf
+*.map
+*.siz
+
+# Editor and operating-system temporary files
+*.tmp
+*.bak
+*.swp
+*.orig
+*.stackdump
+Thumbs.db
+Desktop.ini
+.DS_Store
+
+# Python gateway runtime output
+__pycache__/
+*.py[cod]
+/linux_gateway/logs/
+*.log
+*.out
+/linux_gateway/bin/
+/linux_gateway/build/
+
+# Bootloader and Application build output
+/Bootloader/build/
+/FlashDriver/build/
+/tools/tests/*.exe
+/Application_Build/
+
+# Firmware images are generated locally or attached to a GitHub Release.
+# They are intentionally not stored in the public source tree.
+/firmware/*.bin
+
+# NXP-generated files with restrictive/confidential notices. Keep local copies
+# for S32DS builds, but do not redistribute them from the public repository.
+/include/S32K144.h
+/include/S32K144_features.h
+/Project_Settings/Startup_Code/system_S32K144.c
+/Project_Settings/Linker_Files/S32K144_64_flash.ld
+/Project_Settings/Linker_Files/S32K144_64_ram.ld

@@ -1,0 +1,40 @@
+#!/usr/bin/env python3
+"""Read Stage4 Journal; commissioning requires explicit trusted-slot argument.
+Run while ECU is in Bootloader; this tool does not reset a running Application.
+"""
+import argparse
+import sys
+from gateway.can_bus import SocketCanBus
+from gateway.config import CAN_CHANNEL, CAN_ID_UDS_REQUEST, CAN_ID_UDS_RESPONSE
+from gateway.isotp import IsoTpClient
+from gateway.uds import UdsClient
+from gateway.flasher import calculate_key
+from gateway.update_status import UpdateStatus
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--channel", default=CAN_CHANNEL)
+    parser.add_argument("--initialize", choices=("A", "B", "none"))
+    args = parser.parse_args()
+    try:
+        with SocketCanBus(args.channel) as bus:
+            client = UdsClient(IsoTpClient(bus, CAN_ID_UDS_REQUEST, CAN_ID_UDS_RESPONSE,
+                                          response_timeout=1.0, consecutive_frame_timeout=2.0))
+            status = UpdateStatus.parse(client.read_did(0xF104))
+            status.describe()
+            if args.initialize is not None:
+                if status.valid:
+                    raise RuntimeError("Journal already valid: initialization refused")
+                client.diagnostic_session(2)
+                client.security_key(calculate_key(client.security_seed()))
+                client.routine_start(0xFF02, bytes([{"A": 0, "B": 1, "none": 255}[args.initialize]]))
+                status = UpdateStatus.parse(client.read_did(0xF104))
+                status.describe()
+                print("Journal initialized; no Application sector was erased. Reset board to boot trusted slot.")
+            return 0
+    except (OSError, RuntimeError, ValueError) as error:
+        print(f"Journal operation FAILED: {error}", file=sys.stderr)
+        return 1
+
+if __name__ == "__main__":
+    raise SystemExit(main())

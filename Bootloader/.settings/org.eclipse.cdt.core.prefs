@@ -1,0 +1,11 @@
+doxygen/doxygen_new_line_after_brief=true
+doxygen/doxygen_use_brief_tag=false
+doxygen/doxygen_use_javadoc_tags=true
+doxygen/doxygen_use_pre_tag=false
+doxygen/doxygen_use_structural_commands=false
+eclipse.preferences.version=1
+environment/project/0.585082580/PATH/delimiter=;
+environment/project/0.585082580/PATH/operation=replace
+environment/project/0.585082580/PATH/value=C\:\\NXP\\S32DS.3.6.8\\S32DS\\build_tools\\gcc_v11.4\\gcc-11.4-arm32-eabi\\bin
+environment/project/0.585082580/append=true
+environment/project/0.585082580/appendContributed=true

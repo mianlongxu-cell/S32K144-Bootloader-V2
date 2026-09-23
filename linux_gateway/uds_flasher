@@ -1,0 +1,52 @@
+#!/usr/bin/env python3
+"""One-command SocketCAN UDS firmware flasher."""
+
+from __future__ import annotations
+
+import argparse
+from pathlib import Path
+import sys
+
+from gateway.can_bus import SocketCanBus
+from gateway.config import CAN_CHANNEL, CAN_ID_UDS_REQUEST, CAN_ID_UDS_RESPONSE
+from gateway.flasher import FlashOptions, UdsFlasher
+from gateway.flasher_v2 import V2UdsFlasher
+from gateway.isotp import IsoTpClient
+from gateway.uds import UdsClient
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser(description="S32K144 UDS firmware flasher")
+    parser.add_argument("firmware", type=Path)
+    parser.add_argument("--channel", default=CAN_CHANNEL)
+    parser.add_argument("--version", type=lambda value: int(value, 0), default=0x00020000)
+    parser.add_argument("--wrong-crc", action="store_true")
+    parser.add_argument("--wrong-sequence", action="store_true")
+    parser.add_argument("--skip-security", action="store_true")
+    parser.add_argument("--address", type=lambda value: int(value, 0), default=None)
+    parser.add_argument("--legacy", action="store_true", help="Only for old V1 Bootloaders/raw images")
+    parser.add_argument("--initialize-journal", choices=("A", "B", "none"),
+                        help="Explicit Stage4 commissioning: trusted old slot; none only if no valid images")
+    parser.add_argument("--stop-at", type=int, choices=range(1, 100))#中途停止比例
+    args = parser.parse_args()#解析参数
+    try:
+        firmware = args.firmware.read_bytes()
+        options = FlashOptions(args.version, args.wrong_crc, args.wrong_sequence,
+                               args.skip_security, args.address, args.stop_at)
+        with SocketCanBus(args.channel) as bus:
+            transport = IsoTpClient(bus, CAN_ID_UDS_REQUEST, CAN_ID_UDS_RESPONSE,
+                                    response_timeout=1.0,
+                                    consecutive_frame_timeout=2.0)#创建 ISO-TP 传输层
+            if args.legacy and args.initialize_journal is not None:
+                raise ValueError("--initialize-journal requires V2 Stage4")
+            flasher = UdsFlasher(UdsClient(transport), options) if args.legacy else V2UdsFlasher(
+                UdsClient(transport), options, args.initialize_journal)
+            flasher.flash(firmware)
+        return 0
+    except (OSError, RuntimeError, ValueError) as error:
+        print(f"Firmware update FAILED: {error}", file=sys.stderr)
+        return 1
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

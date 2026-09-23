@@ -1,0 +1,19 @@
+#!/usr/bin/env python3
+"""Read Stage5 lifecycle status while the ECU is in Bootloader Programming Mode."""
+import argparse
+import sys
+from gateway.boot_status import BootStatus
+from gateway.can_bus import SocketCanBus
+from gateway.config import CAN_CHANNEL,CAN_ID_UDS_REQUEST,CAN_ID_UDS_RESPONSE
+from gateway.isotp import IsoTpClient
+from gateway.uds import UdsClient
+def main():
+    parser=argparse.ArgumentParser(description=__doc__);parser.add_argument("--channel",default=CAN_CHANNEL);args=parser.parse_args()
+    try:
+        with SocketCanBus(args.channel) as bus:
+            client=UdsClient(IsoTpClient(bus,CAN_ID_UDS_REQUEST,CAN_ID_UDS_RESPONSE,response_timeout=1.0,consecutive_frame_timeout=2.0))
+            BootStatus.parse(client.read_did(0xF105)).describe()
+        return 0
+    except (OSError,RuntimeError,ValueError) as error:
+        print(f"Boot status FAILED: {error}",file=sys.stderr);return 1
+if __name__=="__main__":raise SystemExit(main())
